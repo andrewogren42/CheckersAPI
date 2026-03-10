@@ -203,9 +203,9 @@ class Node:
         for action, prob in enumerate(policy):
             if prob > 0:
                 childState = self.state.copy()
-                childState = game.getNextState(childState, action, 1)
-                childState = game.changePerspective(childState, player=-1)
-                self.children.append(Node(game, self.args, childState, self, action, prob))
+                childState = checkers.getNextState(childState, action, 1)
+                childState = checkers.changePerspective(childState, player=-1)
+                self.children.append(Node(checkers, self.args, childState, self, action, prob))
 
     def backpropogate(self, value):
         self.valueSum  += value
