@@ -402,7 +402,7 @@ def pieces_to_board(pieces):
     """
     board = np.zeros((8, 8), dtype=int)
     for p in pieces:
-        r, c   = 7 - p['r'], p['c']
+        r, c   = p['r'], p['c']
         player = 1 if p['team'] == 'good' else -1
         value  = 2 if p['isKing'] else 1
         board[r, c] = player * value
@@ -417,7 +417,7 @@ def action_to_move(action):
     start_sq, end_sq = divmod(action, 64)
     r1, c1 = divmod(start_sq, 8)
     r2, c2 = divmod(end_sq, 8)
-    return {'r1': int(7 - r1), 'c1': int(c1), 'r2': int(7 - r2), 'c2': int(c2)}
+    return {'r1': int(r1), 'c1': int(c1), 'r2': int(r2), 'c2': int(c2)}
 
 
 def get_best_move(board, player=-1):
