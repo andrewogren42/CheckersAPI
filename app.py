@@ -17,17 +17,7 @@ import math
 import os
 
 app = Flask(__name__)
-
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = app.make_default_options_response()
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "X-API-Key, Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        return response
-
-CORS(app, supports_credentials=False)
+CORS(app)
 # ─────────────────────────────────────────────
 #  GAME + MODEL (copied from training code)
 # ─────────────────────────────────────────────
