@@ -8,6 +8,16 @@ import math
 import os
 
 app = Flask(__name__)
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "X-API-Key, Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        return response
+         
 CORS(app, resources={r"/*": {"origins": "*"}}, 
      allow_headers=["X-API-Key", "Content-Type"]) # allows your React app to call this API
 
