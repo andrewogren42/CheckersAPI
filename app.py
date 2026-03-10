@@ -99,6 +99,35 @@ class Checkers:
         if (player == 1 and r2 == 0) or (player == -1 and r2 == 7):
             next_state[r2, c2] = player * 2
         return next_state
+        
+    def getValueAndTerminated(self, state, player, spg=None):
+        if not np.any(np.sign(state) == -player):
+            return 1, True
+        if np.sum(self.getValidMoves(state, -player)) == 0:
+            return 1, True
+
+        if np.sum(self.getValidMoves(state, player)) == 0:
+            return -1, True
+        if spg is not None:
+            # 1. Insufficient material: 1 king vs 1 king
+            pieces = state.flatten()
+            playerPieces   = pieces[pieces * player > 0]
+            opponentPieces = pieces[pieces * player < 0]
+            if (len(playerPieces) == 1 and playerPieces[0] == player * 2 and
+                len(opponentPieces) == 1 and opponentPieces[0] == -player * 2):
+                return 0, True
+
+            # 2. 80-move rule (40 per player = 80 half-moves)
+            if spg.movesSinceAdvancement >= 80:
+                return 0, True
+
+            # 3. Three-fold repetition
+            boardHash = state.tobytes()
+            spg.positionHistory[boardHash] = spg.positionHistory.get(boardHash, 0) + 1
+            if spg.positionHistory[boardHash] >= 3:
+                return 0, True
+
+        return 0, False
 
     def getOpponentValue(self, value):
         return -value
