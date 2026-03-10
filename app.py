@@ -8,7 +8,7 @@ import math
 import os
 
 app = Flask(__name__)
-CORS(app)  # allows your React app to call this API
+CORS(app)
 
 # ─────────────────────────────────────────────
 #  GAME + MODEL (copied from training code)
