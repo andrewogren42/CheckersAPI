@@ -232,8 +232,7 @@ class Node:
         for action, prob in enumerate(policy):
             if prob > 0:
                 childState = self.state.copy()
-                childState = checkers.getNextState(childState, action, 1)
-                childState = checkers.changePerspective(childState, player=-1)
+                childState = checkers.getNextState(childState, action, -1)
                 self.children.append(Node(checkers, self.args, childState, self, action, prob))
 
     def backpropogate(self, value):
@@ -266,8 +265,133 @@ MCTS_ARGS = {
     'dirichlet_epsilon': 0.0,   # no noise during inference
     'dirichlet_alpha':   0.3,
 }
+# ─────────────────────────────────────────────
+#  A-B Pruning Functions
+# ─────────────────────────────────────────────
+def mm_get_valid_moves(board, player):
+    """Get all valid moves as list of (r1,c1,r2,c2) tuples with captured pieces."""
+    moves = []
+    capture_moves = []
+    
+    for r in range(8):
+        for c in range(8):
+            piece = board[r, c]
+            if np.sign(piece) != player:
+                continue
+            is_king = abs(piece) == 2
+            
+            if is_king:
+                directions = [(-1,-1),(-1,1),(1,-1),(1,1)]
+            elif player == -1:  # evil moves down
+                directions = [(1,-1),(1,1)]
+            else:  # good moves up
+                directions = [(-1,-1),(-1,1)]
+            
+            for dr, dc in directions:
+                nr, nc = r+dr, c+dc
+                if 0 <= nr < 8 and 0 <= nc < 8:
+                    if board[nr, nc] == 0:
+                        moves.append((r, c, nr, nc, []))
+                    elif np.sign(board[nr, nc]) == -player:
+                        jr, jc = r+dr*2, c+dc*2
+                        if 0 <= jr < 8 and 0 <= jc < 8 and board[jr, jc] == 0:
+                            capture_moves.append((r, c, jr, jc, [(nr, nc)]))
+    
+    return capture_moves if capture_moves else moves
+    
+def mm_apply_move(board, move, player):
+    """Apply a move to a board copy and return new board."""
+    r1, c1, r2, c2, captures = move
+    new_board = board.copy()
+    piece = new_board[r1, c1]
+    new_board[r2, c2] = piece
+    new_board[r1, c1] = 0
+    for cr, cc in captures:
+        new_board[cr, cc] = 0
+    # King promotion
+    if player == -1 and r2 == 7:
+        new_board[r2, c2] = -2
+    if player == 1 and r2 == 0:
+        new_board[r2, c2] = 2
+    return new_board
 
+def mm_evaluate(board):
+    """Evaluate board from evil player (-1) perspective."""
+    score = 0
+    for r in range(8):
+        for c in range(8):
+            piece = board[r, c]
+            if piece == 0:
+                continue
+            value = 3 if abs(piece) == 2 else 1
+            if np.sign(piece) == -1:  # evil
+                score += value
+                if c == 0 or c == 7:
+                    score += 0.5
+                if r == 7:
+                    score += 0.5
+            else:  # good
+                score -= value
+                if c == 0 or c == 7:
+                    score -= 0.5
+                if r == 0:
+                    score -= 0.5
+    return score
 
+def mm_winner(board):
+    """Returns -1 if evil wins, 1 if good wins, 0 if no winner yet."""
+    evil_pieces = np.sum(np.sign(board) == -1)
+    good_pieces = np.sum(np.sign(board) == 1)
+    if evil_pieces == 0:
+        return 1
+    if good_pieces == 0:
+        return -1
+    if len(mm_get_valid_moves(board, -1)) == 0:
+        return 1
+    if len(mm_get_valid_moves(board, 1)) == 0:
+        return -1
+    return 0
+    
+def minimax(board, depth, alpha, beta, maximizing):
+    """Minimax with alpha-beta pruning. Maximizing = evil (-1)."""
+    winner = mm_winner(board)
+    if depth == 0 or winner != 0:
+        return mm_evaluate(board), None
+
+    if maximizing:
+        maxEval = float("-inf")
+        best_move = None
+        for move in mm_get_valid_moves(board, -1):
+            new_board = mm_apply_move(board, move, -1)
+            evaluation = minimax(new_board, depth-1, alpha, beta, False)[0]
+            if evaluation > maxEval:
+                maxEval = evaluation
+                best_move = move
+            alpha = max(alpha, evaluation)
+            if beta <= alpha:
+                break
+        return maxEval, best_move
+    else:
+        minEval = float("inf")
+        best_move = None
+        for move in mm_get_valid_moves(board, 1):
+            new_board = mm_apply_move(board, move, 1)
+            evaluation = minimax(new_board, depth-1, alpha, beta, True)[0]
+            if evaluation < minEval:
+                minEval = evaluation
+                best_move = move
+            beta = min(beta, evaluation)
+            if beta <= alpha:
+                break
+        return minEval, best_move
+        
+def get_minimax_move(board):
+    """Run minimax and return action int."""
+    _, best_move = minimax(board, 5, float("-inf"), float("inf"), True)
+    if best_move is None:
+        return None
+    r1, c1, r2, c2, _ = best_move
+    return (r1 * 8 + c1) * 64 + (r2 * 8 + c2)
 # ─────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────
@@ -282,6 +406,9 @@ def pieces_to_board(pieces):
         player = 1 if p['team'] == 'good' else -1
         value  = 2 if p['isKing'] else 1
         board[r, c] = player * value
+    print("Board state received:")
+    print(board)
+    print("Valid moves for -1:", np.sum(checkers.getValidMoves(board, -1)))
     return board
 
 
@@ -295,24 +422,21 @@ def action_to_move(action):
 
 def get_best_move(board, player=-1):
     """Run MCTS and return the best action."""
-    # Always think from current player's perspective
-    neutralState = checkers.changePerspective(board, player)
-
-    encoded = checkers.getEncodedState(neutralState)
+    encoded = checkers.getEncodedState(board)
     with torch.no_grad():
         policy, _ = model(
             torch.tensor(encoded, dtype=torch.float32, device=device)
         )
         policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
 
-    validMoves = checkers.getValidMoves(neutralState, 1)  # always 1 after perspective flip
+    validMoves = checkers.getValidMoves(board, player) 
     policy *= validMoves
     psum = np.sum(policy)
     if psum > 0:
         policy /= psum
 
     # Run MCTS from root
-    root = Node(checkers, MCTS_ARGS, neutralState, visitCount=1)
+    root = Node(checkers, MCTS_ARGS, board, visitCount=1)
     root.expand(policy)
 
     for _ in range(MCTS_ARGS['numSearches']):
@@ -320,7 +444,7 @@ def get_best_move(board, player=-1):
         while node.isFullyExpanded():
             node = node.select()
 
-        value, isTerminate = checkers.getValueAndTerminated(node.state, 1)
+        value, isTerminate = checkers.getValueAndTerminated(node.state, player)
 
         if not isTerminate:
             encoded = checkers.getEncodedState(node.state)
@@ -331,7 +455,7 @@ def get_best_move(board, player=-1):
             nodePol = torch.softmax(nodePol, dim=1).squeeze(0).cpu().numpy()
             nodeVal = nodeVal.item()
 
-            valid = checkers.getValidMoves(node.state, 1)
+            valid = checkers.getValidMoves(node.state, player)
             nodePol *= valid
             psum = np.sum(nodePol)
             if psum > 0:
@@ -371,12 +495,16 @@ def get_move():
     try:
         data   = request.get_json()
         pieces = data.get('pieces', [])
+        ai_type = data.get('ai_type', 'MCTS')
 
         if not pieces:
             return jsonify({'error': 'No pieces provided'}), 400
 
         board  = pieces_to_board(pieces)
-        action = get_best_move(board, player=-1)  # AI is always -1
+
+        action = get_best_move(board, player=-1) if ai_type == "MCTS" else get_minimax_move(board)
+        if action is None:
+            return jsonify({'error': 'No valid moves found'}), 400
         move   = action_to_move(action)
 
         return jsonify({'move': move, 'action': int(action)})
