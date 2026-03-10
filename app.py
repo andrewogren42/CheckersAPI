@@ -7,15 +7,6 @@ import torch.nn.functional as F
 import math
 import os
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import math
-import os
-
 app = Flask(__name__)
 CORS(app)
 # ─────────────────────────────────────────────
