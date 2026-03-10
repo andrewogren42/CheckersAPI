@@ -7,6 +7,15 @@ import torch.nn.functional as F
 import math
 import os
 
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+import os
+
 app = Flask(__name__)
 
 @app.before_request
@@ -17,10 +26,8 @@ def handle_preflight():
         response.headers["Access-Control-Allow-Headers"] = "X-API-Key, Content-Type"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         return response
-         
-CORS(app, resources={r"/*": {"origins": "*"}}, 
-     allow_headers=["X-API-Key", "Content-Type"]) # allows your React app to call this API
 
+CORS(app, supports_credentials=False)
 # ─────────────────────────────────────────────
 #  GAME + MODEL (copied from training code)
 # ─────────────────────────────────────────────
