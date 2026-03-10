@@ -6,4 +6,5 @@ steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args: ['gcloud', 'run', 'deploy', 'checkersapi', '--image', 'us-central1-docker.pkg.dev/checkersgame-a3b92/cloud-run-source-deploy/checkersapi/checkersapi:$COMMIT_SHA', '--region', 'us-central1', '--platform', 'managed', '--quiet']
 options:
-  logging: NONE
+  logging: CLOUD_LOGGING_ONLY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
