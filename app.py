@@ -10,7 +10,6 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-#trigger rebuild
 # ─────────────────────────────────────────────
 #  GAME + MODEL (copied from training code)
 # ─────────────────────────────────────────────
