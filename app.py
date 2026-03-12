@@ -233,6 +233,7 @@ class Node:
             if prob > 0:
                 childState = self.state.copy()
                 childState = checkers.getNextState(childState, action, -1)
+                childState = checkers.changePerscpective(childState, -1)
                 self.children.append(Node(checkers, self.args, childState, self, action, prob))
 
     def backpropogate(self, value):
@@ -268,9 +269,47 @@ MCTS_ARGS = {
 # ─────────────────────────────────────────────
 #  A-B Pruning Functions
 # ─────────────────────────────────────────────
+def mm_get_chains(board, r, c, piece, visited, player):
+    """Recursively find all jump chains from position, returns list of (end_r, end_c, all_captures)."""
+    is_king = abs(piece) == 2
+    if is_king:
+        directions = [(-1,-1),(-1,1),(1,-1),(1,1)]
+    elif player == -1:
+        directions = [(1,-1),(1,1)]
+    else:
+        directions = [(-1,-1),(-1,1)]
+
+    chains = []
+    for dr, dc in directions:
+        nr, nc = r+dr, c+dc
+        jr, jc = r+dr*2, c+dc*2
+        if (0 <= jr < 8 and 0 <= jc < 8 and
+            np.sign(board[nr, nc]) == -player and
+            (nr, nc) not in visited and
+            board[jr, jc] == 0):
+
+            new_board = board.copy()
+            new_board[jr, jc] = piece
+            new_board[r, c] = 0
+            new_board[nr, nc] = 0
+            if player == -1 and jr == 7:
+                new_board[jr, jc] = -2
+            if player == 1 and jr == 0:
+                new_board[jr, jc] = 2
+
+            new_visited = visited | {(nr, nc)}
+            continuations = mm_get_chains(new_board, jr, jc, new_board[jr, jc], new_visited, player)
+
+            if continuations:
+                for end_r, end_c, captures in continuations:
+                    chains.append((end_r, end_c, list(visited | {(nr, nc)}) + captures))
+            else:
+                chains.append((jr, jc, [*visited, (nr, nc)]))
+
+    return chains
 def mm_get_valid_moves(board, player):
     """Get all valid moves as list of (r1,c1,r2,c2) tuples with captured pieces."""
-    moves = []
+    single_moves = []
     capture_moves = []
     
     for r in range(8):
@@ -282,22 +321,25 @@ def mm_get_valid_moves(board, player):
             
             if is_king:
                 directions = [(-1,-1),(-1,1),(1,-1),(1,1)]
-            elif player == -1:  # evil moves down
+            elif player == -1:
                 directions = [(1,-1),(1,1)]
-            else:  # good moves up
+            else:
                 directions = [(-1,-1),(-1,1)]
             
             for dr, dc in directions:
                 nr, nc = r+dr, c+dc
+                jr, jc = r+dr*2, c+dc*2
                 if 0 <= nr < 8 and 0 <= nc < 8:
                     if board[nr, nc] == 0:
-                        moves.append((r, c, nr, nc, []))
-                    elif np.sign(board[nr, nc]) == -player:
-                        jr, jc = r+dr*2, c+dc*2
-                        if 0 <= jr < 8 and 0 <= jc < 8 and board[jr, jc] == 0:
-                            capture_moves.append((r, c, jr, jc, [(nr, nc)]))
+                        single_moves.append((r, c, nr, nc, []))
+                    elif (np.sign(board[nr, nc]) == -player and
+                          0 <= jr < 8 and 0 <= jc < 8 and board[jr, jc] == 0):
+                        chains = mm_get_chains(board, r, c, piece, set(), player)
+                        for end_r, end_c, captures in chains:
+                            capture_moves.append((r, c, end_r, end_c, captures))
+                        break 
     
-    return capture_moves if capture_moves else moves
+    return capture_moves if capture_moves else single_moves
     
 def mm_apply_move(board, move, player):
     """Apply a move to a board copy and return new board."""
@@ -308,7 +350,6 @@ def mm_apply_move(board, move, player):
     new_board[r1, c1] = 0
     for cr, cc in captures:
         new_board[cr, cc] = 0
-    # King promotion
     if player == -1 and r2 == 7:
         new_board[r2, c2] = -2
     if player == 1 and r2 == 0:
