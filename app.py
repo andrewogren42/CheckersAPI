@@ -471,6 +471,8 @@ def get_best_move(board, player=-1):
         policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
 
     validMoves = checkers.getValidMoves(board, player) 
+    print(f"DEBUG root valid moves: {int(np.sum(valid_moves))}")
+    print(f"DEBUG root board:\n{board}")
     policy *= validMoves
     psum = np.sum(policy)
     if psum > 0:
@@ -548,12 +550,12 @@ def get_move():
 
         print("Running MCTS...")
         action = get_best_move(board, player=-1) if ai_type == "MCTS" else get_minimax_move(board)
-        print(f"Valid moves count: {int(np.sum(valid_moves))}")
+        print(f"DEBUG action returned: {action}")
         if action is None:
             return jsonify({'error': 'No valid moves found'}), 400
         print(f"Action: {action}")
         move   = action_to_move(action)
-        print(f"Move: {move_dict}")
+        print(f"DEBUG move_dict: {move_dict}")
         return jsonify({'move': move, 'action': int(action)})
 
     except Exception as e:
