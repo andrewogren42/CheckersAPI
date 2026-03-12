@@ -233,7 +233,7 @@ class Node:
             if prob > 0:
                 childState = self.state.copy()
                 childState = checkers.getNextState(childState, action, -1)
-                childState = checkers.changePerspective(childState, -1)
+                # childState = checkers.changePerspective(childState, -1)
                 self.children.append(Node(checkers, self.args, childState, self, action, prob))
 
     def backpropogate(self, value):
@@ -487,7 +487,7 @@ def get_best_move(board, player=-1):
         while node.isFullyExpanded():
             node = node.select()
 
-        value, isTerminate = checkers.getValueAndTerminated(node.state, player)
+        value, isTerminate = checkers.getValueAndTerminated(node.state, -1)
 
         if not isTerminate:
             encoded = checkers.getEncodedState(node.state)
@@ -498,7 +498,7 @@ def get_best_move(board, player=-1):
             nodePol = torch.softmax(nodePol, dim=1).squeeze(0).cpu().numpy()
             nodeVal = nodeVal.item()
 
-            valid = checkers.getValidMoves(node.state, player)
+            valid = checkers.getValidMoves(node.state, -1)
             nodePol *= valid
             psum = np.sum(nodePol)
             if psum > 0:
@@ -512,6 +512,8 @@ def get_best_move(board, player=-1):
     # Pick action with highest visit count
     visitCounts = np.array([child.visitCount for child in root.children])
     bestChild   = root.children[np.argmax(visitCounts)]
+    best_move_coords = action_to_move(bestChild.actionTaken)
+    print(f"AI Final Choice: {best_move_coords}")
     return bestChild.actionTaken
 
 
