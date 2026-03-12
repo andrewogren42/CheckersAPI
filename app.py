@@ -540,17 +540,25 @@ def get_move():
 
         if not pieces:
             return jsonify({'error': 'No pieces provided'}), 400
+            
+        print(f"Received {len(pieces)} pieces")
+        board  = pieces_to_board(pieces
+        print(f"Board shape: {board.shape}")
+        print(f"Board:\n{board}")
 
-        board  = pieces_to_board(pieces)
-
+        print("Running MCTS...")
         action = get_best_move(board, player=-1) if ai_type == "MCTS" else get_minimax_move(board)
+        print(f"Valid moves count: {int(np.sum(valid_moves))}")
         if action is None:
             return jsonify({'error': 'No valid moves found'}), 400
+        print(f"Action: {action}")
         move   = action_to_move(action)
-
+        print(f"Move: {move_dict}")
         return jsonify({'move': move, 'action': int(action)})
 
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
