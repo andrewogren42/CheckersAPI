@@ -233,7 +233,7 @@ class Node:
             if prob > 0:
                 childState = self.state.copy()
                 childState = checkers.getNextState(childState, action, -1)
-                childState = checkers.changePerscpective(childState, -1)
+                childState = checkers.changePerspective(childState, -1)
                 self.children.append(Node(checkers, self.args, childState, self, action, prob))
 
     def backpropogate(self, value):
