@@ -471,7 +471,7 @@ def get_best_move(board, player=-1):
         policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
 
     validMoves = checkers.getValidMoves(board, player) 
-    print(f"DEBUG root valid moves: {int(np.sum(valid_moves))}")
+    print(f"DEBUG root valid moves: {int(np.sum(validMoves))}")
     print(f"DEBUG root board:\n{board}")
     policy *= validMoves
     psum = np.sum(policy)
@@ -544,7 +544,7 @@ def get_move():
             return jsonify({'error': 'No pieces provided'}), 400
             
         print(f"Received {len(pieces)} pieces")
-        board  = pieces_to_board(pieces
+        board  = pieces_to_board(pieces)
         print(f"Board shape: {board.shape}")
         print(f"Board:\n{board}")
 
@@ -555,14 +555,20 @@ def get_move():
             return jsonify({'error': 'No valid moves found'}), 400
         print(f"Action: {action}")
         move   = action_to_move(action)
-        print(f"DEBUG move_dict: {move_dict}")
+        print(f"DEBUG move_dict: {move}")
         return jsonify({'move': move, 'action': int(action)})
 
     except Exception as e:
         import traceback
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
+        
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    return response
 
 @app.route('/health', methods=['GET'])
 def health():
