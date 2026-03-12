@@ -90,6 +90,10 @@ class Checkers:
         dc = int(np.sign(c2 - c1))
         curr_r, curr_c = r1 + dr, c1 + dc
         while (curr_r, curr_c) != (r2, c2):
+            if not (0 <= curr_r < 8 and 0 <= curr_c < 8):
+                print(f"CRITICAL: Jump logic failed. Path from ({r1},{c1}) to ({r2},{c2}) exited board at ({curr_r},{curr_c})")
+                break
+                
             if np.sign(next_state[curr_r, curr_c]) == -player:
                 next_state[curr_r, curr_c] = 0
             curr_r += dr
