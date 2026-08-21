@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import math
 import os
 
-
 app = Flask(__name__)
 CORS(app)
 
